@@ -1,16 +1,27 @@
 import java.lang.Thread;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Semaphore;
 
 class ObservPhilosopher implements Runnable{
     int T_observ;
     Diner.Philosopher philosopher;
-    ObservPhilosopher(Diner.Philosopher philosopher, int T_observ){
+    CyclicBarrier barrier;
+    ObservPhilosopher(Diner.Philosopher philosopher, int T_observ, CyclicBarrier barrier){
         this.philosopher = philosopher;
         this.T_observ = T_observ;
+        this.barrier = barrier;
     }
 
     @Override
     public void run(){
+        try {
+            barrier.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (BrokenBarrierException e) {
+            e.printStackTrace();
+        }
         try{
             Thread.sleep(50);
         }catch(InterruptedException e){}
@@ -31,20 +42,22 @@ class Dinnering implements Runnable{
     int updatableTime;
     int t_dinner;
     int T_observ;
+    CyclicBarrier barrier;
 
-    Dinnering(int philosopherName, Diner.Table table, Semaphore sem, int t_dinner, int T_observ){
+    Dinnering(int philosopherName, Diner.Table table, Semaphore sem, int t_dinner, int T_observ, CyclicBarrier barrier){
         this.philosopherName = philosopherName;
         this.table = table;
         this.sem = sem;
         this.t_dinner = t_dinner;
         this.T_observ = T_observ;
+        this.barrier = barrier;
     }
 
     @Override
     public void run() {
         Diner.Philosopher philosopher = new Diner.Philosopher(philosopherName);
 
-        ObservPhilosopher observPhilosopher = new ObservPhilosopher(philosopher,T_observ);
+        ObservPhilosopher observPhilosopher = new ObservPhilosopher(philosopher,T_observ, barrier);
         Thread thredObserv = new Thread(observPhilosopher);
         thredObserv.start();
 
@@ -115,11 +128,11 @@ class Dinnering implements Runnable{
 
 public class Diner {
 
-    static final int N = 5;
-    static final int T_dinner = 4000;
-    static final int T_observ = 1000;
-    static final int t_eat = 100;
-    static final int t_think = 100;
+    static final int N = 3;
+    static final int T_dinner = 3000;
+    static final int T_observ = 500;
+    static final int t_eat = 500;
+    static final int t_think = 500;
 
 
     static class Philosopher {
@@ -227,8 +240,9 @@ public class Diner {
         Thread []chair = new Thread[N];
         Table table = new Table();
         Semaphore sem = new Semaphore(N/2);
+        CyclicBarrier barrier = new CyclicBarrier(N);
         for (int i=0; i<N;i++){
-            Dinnering dinnering = new Dinnering(i, table, sem,T_dinner,T_observ);
+            Dinnering dinnering = new Dinnering(i, table, sem,T_dinner,T_observ,barrier);
             chair[i] = new Thread(dinnering);
             chair[i].start();
         }
