@@ -3,32 +3,32 @@ import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Semaphore;
 
-class ObservPhilosopher implements Runnable{
-    int T_observ;
+class ObservePhilosopher implements Runnable{
+    int T_observe;
     Diner.Philosopher philosopher;
     CyclicBarrier barrier;
-    ObservPhilosopher(Diner.Philosopher philosopher, int T_observ, CyclicBarrier barrier){
+    ObservePhilosopher(Diner.Philosopher philosopher, int T_observ, CyclicBarrier barrier){
         this.philosopher = philosopher;
-        this.T_observ = T_observ;
+        this.T_observe = T_observ;
         this.barrier = barrier;
     }
 
     @Override
     public void run(){
-        try {
+        /*try {
             barrier.await();
         } catch (InterruptedException e) {
             e.printStackTrace();
         } catch (BrokenBarrierException e) {
             e.printStackTrace();
-        }
+        }*/
         try{
             Thread.sleep(50);
         }catch(InterruptedException e){}
         while(philosopher.getAlive()){
             System.out.println(philosopher.getInfo());
             try{
-                Thread.sleep(T_observ);
+                Thread.sleep(T_observe);
             }catch(InterruptedException e){}
         }
     }
@@ -41,15 +41,15 @@ class Dinnering implements Runnable{
     Semaphore sem;
     int updatableTime;
     int t_dinner;
-    int T_observ;
+    int T_observe;
     CyclicBarrier barrier;
 
-    Dinnering(int philosopherName, Diner.Table table, Semaphore sem, int t_dinner, int T_observ, CyclicBarrier barrier){
+    Dinnering(int philosopherName, Diner.Table table, Semaphore sem, int t_dinner, int T_observe, CyclicBarrier barrier){
         this.philosopherName = philosopherName;
         this.table = table;
         this.sem = sem;
         this.t_dinner = t_dinner;
-        this.T_observ = T_observ;
+        this.T_observe = T_observe;
         this.barrier = barrier;
     }
 
@@ -57,7 +57,7 @@ class Dinnering implements Runnable{
     public void run() {
         Diner.Philosopher philosopher = new Diner.Philosopher(philosopherName);
 
-        ObservPhilosopher observPhilosopher = new ObservPhilosopher(philosopher,T_observ, barrier);
+        ObservePhilosopher observPhilosopher = new ObservePhilosopher(philosopher, T_observe, barrier);
         Thread thredObserv = new Thread(observPhilosopher);
         thredObserv.start();
 
@@ -66,63 +66,31 @@ class Dinnering implements Runnable{
         boolean forkRight;
         boolean forkLeft;
         long nowTime = System.currentTimeMillis();
-
-        while(updatableTime<t_dinner){
-
-            try{
+        try{
+            while(updatableTime<t_dinner){
                 synchronized(table) {
-                    //Semaphore on
-                    //sem.acquire();
-                    forkLeft = table.getFork(philosopher.getName());
-                    //System.out.println("Гость(" + philosopher.getName() + "): левая вилка- " + forkLeft);
-
-                    if (philosopher.getName() < table.N_Fork - 1) {
-                        forkRight = table.getFork(philosopher.getName() + 1);
-                    } else {
-                        forkRight = table.getFork(0);
-                    }
-
-                    //.out.println("Гость(" + philosopher.getName() + "): правая вилка- " + forkRight);
-
-                    if (forkLeft && forkRight) {
-
-                        //System.out.println("Гость(" + philosopher.getName() + "): кушает");
-                        philosopher.eat();
-                        //System.out.println("Гость(" + philosopher.getName() + "): поел");
-
-                        table.putForkBack(philosopher.getName());
+                    synchronized(table.fork[philosopher.getName()]){
                         if (philosopher.getName() < table.N_Fork - 1) {
-                            table.putForkBack(philosopher.getName() + 1);
+                            synchronized(table.fork[philosopher.getName()+1]){
+                                philosopher.eat();
+                                philosopher.thinks();
+                            }
                         } else {
-                            table.putForkBack(0);
-                        }
-                        //Semaphore off
-                        //sem.release();
-
-                        //System.out.println("Гость(" + philosopher.getName() + "): филосовствует");
-                        philosopher.thinks();
-
-                    } else {
-                        if (forkLeft) {
-                            table.putForkBack(philosopher.getName());
-                        }
-                        if (forkRight) {
-                            if (philosopher.getName() < table.N_Fork - 1) {
-                                table.putForkBack(philosopher.getName() + 1);
-                            } else {
-                                table.putForkBack(0);
+                            synchronized(table.fork[0]){
+                                philosopher.eat();
+                                philosopher.thinks();
                             }
                         }
                     }
                 }
-            }catch(Exception e){
-                System.out.println ("У гостя(" + philosopher.getName() + "): проблемы со здоровьем");
+                updatableTime = (int) (System.currentTimeMillis() - nowTime);
             }
-
-            updatableTime = (int) (System.currentTimeMillis() - nowTime);
+        }
+        catch(Exception e){
+            System.out.println("что-то пошло не так: "+e);
         }
         philosopher.setAlive(false);
-        //System.out.println(updatableTime);
+        System.out.println(updatableTime);
     }
 }
 
@@ -130,9 +98,9 @@ public class Diner {
 
     static final int N = 3;
     static final int T_dinner = 3000;
-    static final int T_observ = 500;
-    static final int t_eat = 500;
-    static final int t_think = 500;
+    static final int T_observe = 500;
+    static final int t_eat = 1;
+    static final int t_think = 1;
 
 
     static class Philosopher {
@@ -142,6 +110,7 @@ public class Diner {
         private boolean think;
         private int name;
         private boolean alive;
+        private int wasEaten=0;
 
 
         Philosopher(int name) {
@@ -183,6 +152,7 @@ public class Diner {
 
         public void eat() {
             eat = true;
+            wasEaten++;
             try {
                 Thread.sleep(t_eat);
 
@@ -208,31 +178,23 @@ public class Diner {
             String info;
             info = "Гость("+name+"):\n"+
                     "Кушает: "+eat+
-                    "\nДумает: "+think;
+                    "\nДумает: "+think+
+                    "\nПокушал и подумал раз: "+wasEaten;
             return info;
         }
     }
 
     static class Table{
-        private boolean []fork = new boolean[N];
+
+        public static Object []fork = new Object[N];
         int N_Fork;
         Table() {
-            for (int i = 0;i<N;i++){
-                fork[i] = true;
-            }
             N_Fork = fork.length;
+            for(int i=0; i<N_Fork; i++){
+                fork[i] = "";
+            }
         }
-        public boolean getFork(int index){
-             if(fork[index]==false){
-                 return false;
-             }else{
-                 fork[index] = false;
-                 return true;
-             }
-        }
-        public void putForkBack(int index){
-            fork[index]=true;
-        }
+
     }
 
     public static void main(String args[]){
@@ -242,13 +204,13 @@ public class Diner {
         Semaphore sem = new Semaphore(N/2);
         CyclicBarrier barrier = new CyclicBarrier(N);
         for (int i=0; i<N;i++){
-            Dinnering dinnering = new Dinnering(i, table, sem,T_dinner,T_observ,barrier);
+            Dinnering dinnering = new Dinnering(i, table, sem,T_dinner,T_observe,barrier);
             chair[i] = new Thread(dinnering);
             chair[i].start();
         }
         try {
             Thread.sleep(T_dinner);
-
+            //chair[4].interrupt();
 
         }  catch(InterruptedException e){
 
