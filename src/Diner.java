@@ -1,4 +1,6 @@
 import java.lang.Thread;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Semaphore;
@@ -6,24 +8,20 @@ import java.util.concurrent.Semaphore;
 class ObservePhilosopher implements Runnable{
     int T_observe;
     Diner.Philosopher philosopher;
-    CyclicBarrier barrier;
-    ObservePhilosopher(Diner.Philosopher philosopher, int T_observ, CyclicBarrier barrier){
+
+    Diner.Table table;
+    ObservePhilosopher(Diner.Philosopher philosopher, int T_observ, Diner.Table table){
         this.philosopher = philosopher;
         this.T_observe = T_observ;
-        this.barrier = barrier;
+
+        this.table = table;
     }
 
     @Override
     public void run(){
-        /*try {
-            barrier.await();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (BrokenBarrierException e) {
-            e.printStackTrace();
-        }*/
         while(philosopher.getAlive()){
-            System.out.println(philosopher.getInfo());
+            table.addInfo(philosopher.getName(), philosopher.getInfo());
+
             try{
                 Thread.sleep(T_observe);
             }catch(InterruptedException e){}
@@ -54,7 +52,7 @@ class Dinnering implements Runnable{
     public void run() {
         Diner.Philosopher philosopher = new Diner.Philosopher(philosopherName);
 
-        ObservePhilosopher observPhilosopher = new ObservePhilosopher(philosopher, T_observe, barrier);
+        ObservePhilosopher observPhilosopher = new ObservePhilosopher(philosopher, T_observe, table);
         Thread thredObserv = new Thread(observPhilosopher);
         thredObserv.start();
 
@@ -97,8 +95,8 @@ class Dinnering implements Runnable{
 public class Diner {
 
     static final int N = 5;
-    static final int T_dinner = 6000;
-    static final int T_observe = 500;
+    static final int T_dinner = 5000;
+    static final int T_observe = 100;
     static final int t_eat = 0;
     static final int t_think = 0;
 
@@ -194,15 +192,48 @@ public class Diner {
     }
 
     static class Table{
+        static class GuestsInfo {
+            private String info;
+
+            public void setInfo(String info){
+                this.info = info;
+            }
+            public String getInfo(){return info;}
+        }
 
         public static Object []fork = new Object[N];
-        int N_Fork;
+        public int N_Fork;
+        private GuestsInfo []guestsInfo = new GuestsInfo[N];
+        private int infoInt;
+
         Table() {
+            infoInt = 0;
             N_Fork = fork.length;
             for(int i=0; i<N_Fork; i++){
                 fork[i] = new Object();
+                guestsInfo[i] = new GuestsInfo();
+
             }
         }
+
+
+        public void addInfo(int guestId,String info){
+            infoInt++;
+            guestsInfo[guestId].setInfo(info);
+
+            if(infoInt == N){
+                System.out.println("||============INFO============||");
+                System.out.println("Информация про гостей:");
+                for(int i=0; i<N; i++){
+                    System.out.println(guestsInfo[i].getInfo());
+                }
+                infoInt = 0;
+            }
+        }
+
+
+
+
 
     }
 
