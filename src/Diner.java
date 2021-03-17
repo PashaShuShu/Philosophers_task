@@ -62,8 +62,7 @@ class Dinnering implements Runnable{
 
 
         try {
-        while(!Thread.currentThread().isInterrupted()/*updatableTime<t_dinner*/){
-            synchronized(table) {
+            while(!Thread.currentThread().isInterrupted()/*updatableTime<t_dinner*/){
                 synchronized(table.fork[philosopher.getName()]){
                     if (philosopher.getName() < table.N_Fork-1) {
                         synchronized(table.fork[philosopher.getName()+1]){
@@ -79,26 +78,25 @@ class Dinnering implements Runnable{
                         }
                     }
                 }
-            }
 
-        }
+
+            }
         }
         catch (InterruptedException e)
         {
             //e.printStackTrace();
         }
         philosopher.setAlive(false);
-        //System.out.println("Время философа("+philosopher.getName()+"):"+ +updatableTime);
     }
 }
 
 public class Diner {
 
     static final int N = 5;
-    static final int T_dinner = 5000;
+    static final int T_dinner = 2000;
     static final int T_observe = 100;
-    static final int t_eat = 0;
-    static final int t_think = 0;
+    static final int t_eat = 50;
+    static final int t_think = 50;
 
 
     static class Philosopher {
@@ -203,11 +201,13 @@ public class Diner {
 
         public static Object []fork = new Object[N];
         public int N_Fork;
+        private int forksIsOnUseing;
         private GuestsInfo []guestsInfo = new GuestsInfo[N];
         private int infoInt;
 
         Table() {
             infoInt = 0;
+            forksIsOnUseing = 0;
             N_Fork = fork.length;
             for(int i=0; i<N_Fork; i++){
                 fork[i] = new Object();
@@ -215,8 +215,6 @@ public class Diner {
 
             }
         }
-
-
         public void addInfo(int guestId,String info){
             infoInt++;
             guestsInfo[guestId].setInfo(info);
@@ -230,7 +228,13 @@ public class Diner {
                 infoInt = 0;
             }
         }
-
+        public boolean isForksEnough(){
+            if(forksIsOnUseing<=N/2){
+                return true;
+            }else{
+                return false;
+            }
+        }
 
 
 
