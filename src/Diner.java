@@ -13,7 +13,6 @@ class ObservePhilosopher implements Runnable{
     ObservePhilosopher(Diner.Philosopher philosopher, int T_observ, Diner.Table table){
         this.philosopher = philosopher;
         this.T_observe = T_observ;
-
         this.table = table;
     }
 
@@ -24,7 +23,9 @@ class ObservePhilosopher implements Runnable{
 
             try{
                 Thread.sleep(T_observe);
-            }catch(InterruptedException e){}
+            }catch(InterruptedException e){
+                e.printStackTrace();
+            }
         }
     }
 }
@@ -34,7 +35,7 @@ class Dinnering implements Runnable{
     int philosopherName;
     Diner.Table table;
     Semaphore sem;
-    //int updatableTime;
+
     int t_dinner;
     int T_observe;
     CyclicBarrier barrier;
@@ -56,35 +57,31 @@ class Dinnering implements Runnable{
         Thread thredObserv = new Thread(observPhilosopher);
         thredObserv.start();
 
-        System.out.println("Гость("+philosopher.getName()+"): присоединился к трапизе");
-
-        boolean first= false;
-
+        System.out.println("Гость(" + philosopher.getName() + "): присоединился к трапизе");
 
         try {
-            while(!Thread.currentThread().isInterrupted()/*updatableTime<t_dinner*/){
-                synchronized(table.fork[philosopher.getName()]){
-                    if (philosopher.getName() < table.N_Fork-1) {
-                        synchronized(table.fork[philosopher.getName()+1]){
-                            philosopher.eat();
+            while (!Thread.currentThread().isInterrupted()) {
+                synchronized (table){
+                    synchronized (table.fork[philosopher.getName()]) {
+                        if (philosopher.getName() < table.N_Fork - 1) {
+                            synchronized (table.fork[philosopher.getName() + 1]) {
+                                philosopher.eat();
 
-                            philosopher.thinks();
-                        }
-                    } else {
-                        synchronized(table.fork[0]){
-                            philosopher.eat();
+                                philosopher.thinks();
+                            }
+                        } else {
+                            synchronized (table.fork[0]) {
+                                philosopher.eat();
 
-                            philosopher.thinks();
+                                philosopher.thinks();
+                            }
                         }
                     }
+
                 }
-
-
             }
-        }
-        catch (InterruptedException e)
-        {
-            //e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
         philosopher.setAlive(false);
     }
@@ -93,15 +90,13 @@ class Dinnering implements Runnable{
 public class Diner {
 
     static final int N = 5;
-    static final int T_dinner = 2000;
+    static final int T_dinner = 6000;
     static final int T_observe = 100;
-    static final int t_eat = 50;
-    static final int t_think = 50;
+    static final int t_eat = 0;
+    static final int t_think = 0;
 
 
     static class Philosopher {
-        private boolean rightHend;
-        private boolean leftHend;
         private boolean eat;
         private boolean think;
         private int name;
@@ -114,8 +109,6 @@ public class Diner {
 
         Philosopher(int name) {
             this.name = name;
-            rightHend = false;
-            leftHend = false;
             alive = true;
             eat = false;
             think = false;
@@ -136,23 +129,6 @@ public class Diner {
         public int getName(){
             return name;
         }
-
-        public boolean getRightHend() {
-            return rightHend;
-        }
-
-        public boolean getLeftHend() {
-            return leftHend;
-        }
-
-        public void setRightHend(boolean fork) {
-            rightHend = fork;
-        }
-
-        public void setLeftHend(boolean fork) {
-            leftHend = fork;
-        }
-
         public void eat() throws InterruptedException {
             if(!firstTime) {
                 nowTime = (int) (System.currentTimeMillis() - startTime);
@@ -201,13 +177,13 @@ public class Diner {
 
         public static Object []fork = new Object[N];
         public int N_Fork;
-        private int forksIsOnUseing;
+
         private GuestsInfo []guestsInfo = new GuestsInfo[N];
         private int infoInt;
 
         Table() {
             infoInt = 0;
-            forksIsOnUseing = 0;
+
             N_Fork = fork.length;
             for(int i=0; i<N_Fork; i++){
                 fork[i] = new Object();
@@ -228,13 +204,7 @@ public class Diner {
                 infoInt = 0;
             }
         }
-        public boolean isForksEnough(){
-            if(forksIsOnUseing<=N/2){
-                return true;
-            }else{
-                return false;
-            }
-        }
+
 
 
 
