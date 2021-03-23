@@ -19,12 +19,14 @@ class ObservePhilosopher implements Runnable{
     @Override
     public void run(){
         while(philosopher.getAlive()){
-            table.addInfo(philosopher.getName(), philosopher.getInfo());
 
             try{
                 Thread.sleep(T_observe);
             }catch(InterruptedException e){
                 e.printStackTrace();
+            }
+            synchronized(table) {
+                table.addInfo(philosopher.getName(), philosopher.getInfo());
             }
         }
     }
@@ -61,23 +63,21 @@ class Dinnering implements Runnable{
 
         try {
             while (!Thread.currentThread().isInterrupted()) {
-                synchronized (table){
-                    synchronized (table.fork[philosopher.getName()]) {
-                        if (philosopher.getName() < table.N_Fork - 1) {
-                            synchronized (table.fork[philosopher.getName() + 1]) {
-                                philosopher.eat();
 
-                                philosopher.thinks();
-                            }
-                        } else {
-                            synchronized (table.fork[0]) {
-                                philosopher.eat();
+                synchronized (table.fork[philosopher.getName()]) {
+                    if (philosopher.getName() < table.N_Fork - 1) {
+                        synchronized (table.fork[philosopher.getName() + 1]) {
+                            philosopher.eat();
 
-                                philosopher.thinks();
-                            }
+                            philosopher.thinks();
+                        }
+                    } else {
+                        synchronized (table.fork[0]) {
+                            philosopher.eat();
+
+                            philosopher.thinks();
                         }
                     }
-
                 }
             }
         } catch (InterruptedException e) {
@@ -90,7 +90,7 @@ class Dinnering implements Runnable{
 public class Diner {
 
     static final int N = 5;
-    static final int T_dinner = 6000;
+    static final int T_dinner = 3000;
     static final int T_observe = 100;
     static final int t_eat = 0;
     static final int t_think = 0;
@@ -204,10 +204,6 @@ public class Diner {
                 infoInt = 0;
             }
         }
-
-
-
-
 
     }
 
