@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.locks.ReentrantLock;
 
 class ObservePhilosopher implements Runnable{
     int T_observe;
@@ -35,24 +36,30 @@ class ObservePhilosopher implements Runnable{
 class Dinnering implements Runnable{
 
     int philosopherName;
-    Diner.Table table;
+
     Semaphore sem;
     Diner.Philosopher philosopher;
     int t_dinner;
     int T_observe;
+    ReentrantLock locker;
+    Object r_fork, l_fork;
+    Diner.Table table;
 
-
-    Dinnering(Diner.Philosopher philosopher, Diner.Table table, Semaphore sem, int t_dinner, int T_observe, CyclicBarrier barrier){
+    Dinnering(Diner.Philosopher philosopher, Object r_fork, Object l_fork, Semaphore sem, int t_dinner, int T_observe, CyclicBarrier barrier, ReentrantLock lock, Diner.Table table){
         this.philosopherName = philosopherName;
-        this.table = table;
         this.sem = sem;
         this.t_dinner = t_dinner;
         this.T_observe = T_observe;
         this.philosopher = philosopher;
+        locker = lock;
+        this.l_fork = l_fork;
+        this.r_fork = r_fork;
+        this.table = table;
     }
 
     @Override
     public void run() {
+
 
 
         ObservePhilosopher observPhilosopher = new ObservePhilosopher(philosopher, T_observe, table);
@@ -63,17 +70,10 @@ class Dinnering implements Runnable{
 
         try {
             while (!Thread.currentThread().isInterrupted()) {
-
-                synchronized (table.fork[philosopher.getName()]) {
-                    if (philosopher.getName() < table.N_Fork - 1) {
-                        synchronized (table.fork[philosopher.getName() + 1]) {
+                synchronized (r_fork) {
+                        synchronized (l_fork) {
                             philosopher.eat();
                         }
-                    } else {
-                        synchronized (table.fork[0]) {
-                            philosopher.eat();
-                        }
-                    }
                 }
                 philosopher.thinks();
             }
@@ -87,8 +87,8 @@ class Dinnering implements Runnable{
 public class Diner {
 
     static final int N = 5;
-    static final int T_dinner = 1000;
-    static final int T_observe = 100;
+    static final int T_dinner = 10;
+    static final int T_observe = 1;
     static final int t_eat = 1;
     static final int t_think = 1;
 
@@ -211,11 +211,20 @@ public class Diner {
         Semaphore sem = new Semaphore(N/2);
         CyclicBarrier barrier = new CyclicBarrier(N);
         Philosopher philosopher[] = new Philosopher[N];
+        ReentrantLock locker = new ReentrantLock();
         for(int i=0; i<N;i++){
             philosopher[i]= new Philosopher(i);
         }
         for (int i=0; i<N;i++){
-            Dinnering dinnering = new Dinnering(philosopher[i], table, sem,T_dinner,T_observe,barrier);
+            Object r_forck;
+            Object l_forck;
+            r_forck = table.fork[philosopher[i].getName()];
+            if (i < table.N_Fork - 1) {
+                l_forck = table.fork[philosopher[i].getName() + 1];
+            } else {
+                l_forck = table.fork[0];
+            }
+            Dinnering dinnering = new Dinnering(philosopher[i], l_forck, r_forck, sem, T_dinner,T_observe, barrier, locker, table);
             chair[i] = new Thread(dinnering);
             chair[i].start();
         }
