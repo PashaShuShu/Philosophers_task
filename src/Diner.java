@@ -37,23 +37,23 @@ class Dinnering implements Runnable{
     int philosopherName;
     Diner.Table table;
     Semaphore sem;
-
+    Diner.Philosopher philosopher;
     int t_dinner;
     int T_observe;
-    CyclicBarrier barrier;
 
-    Dinnering(int philosopherName, Diner.Table table, Semaphore sem, int t_dinner, int T_observe, CyclicBarrier barrier){
+
+    Dinnering(Diner.Philosopher philosopher, Diner.Table table, Semaphore sem, int t_dinner, int T_observe, CyclicBarrier barrier){
         this.philosopherName = philosopherName;
         this.table = table;
         this.sem = sem;
         this.t_dinner = t_dinner;
         this.T_observe = T_observe;
-        this.barrier = barrier;
+        this.philosopher = philosopher;
     }
 
     @Override
     public void run() {
-        Diner.Philosopher philosopher = new Diner.Philosopher(philosopherName);
+
 
         ObservePhilosopher observPhilosopher = new ObservePhilosopher(philosopher, T_observe, table);
         Thread thredObserv = new Thread(observPhilosopher);
@@ -68,32 +68,29 @@ class Dinnering implements Runnable{
                     if (philosopher.getName() < table.N_Fork - 1) {
                         synchronized (table.fork[philosopher.getName() + 1]) {
                             philosopher.eat();
-
-                            philosopher.thinks();
                         }
                     } else {
                         synchronized (table.fork[0]) {
                             philosopher.eat();
-
-                            philosopher.thinks();
                         }
                     }
                 }
+                philosopher.thinks();
             }
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        philosopher.setAlive(false);
+
     }
 }
 
 public class Diner {
 
     static final int N = 5;
-    static final int T_dinner = 3000;
+    static final int T_dinner = 1000;
     static final int T_observe = 100;
-    static final int t_eat = 0;
-    static final int t_think = 0;
+    static final int t_eat = 1;
+    static final int t_think = 1;
 
 
     static class Philosopher {
@@ -213,16 +210,22 @@ public class Diner {
         Table table = new Table();
         Semaphore sem = new Semaphore(N/2);
         CyclicBarrier barrier = new CyclicBarrier(N);
+        Philosopher philosopher[] = new Philosopher[N];
+        for(int i=0; i<N;i++){
+            philosopher[i]= new Philosopher(i);
+        }
         for (int i=0; i<N;i++){
-            Dinnering dinnering = new Dinnering(i, table, sem,T_dinner,T_observe,barrier);
+            Dinnering dinnering = new Dinnering(philosopher[i], table, sem,T_dinner,T_observe,barrier);
             chair[i] = new Thread(dinnering);
             chair[i].start();
         }
         try {
             Thread.sleep(T_dinner);
             for (int i=0; i<N;i++){
+                philosopher[i].setAlive(false);
                 chair[i].interrupt();
             }
+
         }  catch(InterruptedException e){
 
         }
